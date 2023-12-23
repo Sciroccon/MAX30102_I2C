@@ -89,7 +89,7 @@ uint16_t MAX_ReadFifoReg(uint8_t regAddr,uint8_t size){
 void MAX_GetFifoSample(uint16_t *data, uint16_t numBytes,uint8_t bufferSize){
         uint8_t rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
         uint8_t wr_ptr = MAX_ReadRegister(FIFO_WRITE_POINTER);
-        volatile int i=0;;
+        volatile int i=0;
         while(i<bufferSize)
         {
             rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
