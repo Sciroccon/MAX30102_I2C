@@ -24,10 +24,10 @@ GPIOB->AFR[0] |= (4 << (6 * 4)) | (4 << (7 * 4)); // AF4 za I2C1 na pinovima PB6
 // Konfiguracija registara za I2C
 I2C1->OAR1 |= 0x4000;
 I2C1->CR1 &= ~I2C_CR1_PE; 	// Isključuje I2C prije nego što se konfigurise
-I2C1->CR2 = 0x0010; 		// 16MHz takt, moze ici do max 42Mhz
-I2C1->CCR = 0x50;			// T=1/F=1/100khz=0.01ms  Duty cycle Ton=0.01ms/2=5000ns jer hocemo da je duty cycle 0.5
+I2C1->CR2 = 0x002A; 		// 42MHz takt, moze ici do max 42Mhz
+I2C1->CCR = 0x35 | I2C_CCR_FS;			// T=1/F=1/400khz=0.0025ms  Duty cycle Ton=0.01ms/2=5000ns jer hocemo da je duty cycle 0.5
 							// Periferal clock radi na 16MHz, te ide da je perio Tpclk=1/16Mhz=62.5ns, te ide CCR=5000ns/62.5=80 ili moze ici CCR=16Mhz/2*100khz
-I2C1->TRISE = 0x03; 		// Računamo prema formuli za 100 kHz brzinu (Periferal_clock(16Mhz)/1Mhz) + 1)= 16+1= 17
+I2C1->TRISE = 0x2B; 		// Računamo prema formuli za 100 kHz brzinu (Periferal_clock(42Mhz)/1Mhz) + 1)= 42+1= 43
 
 
 I2C1->CR1 |= I2C_CR1_PE; 	// Ponovno uključi I2C
