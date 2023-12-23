@@ -27,6 +27,6 @@
 
 
 void MAX_Init(void);
-void MAX_GetFifoSample(uint16_t *data,uint8_t bufferSize);
+void MAX_GetFifoSample(uint32_t *data,uint8_t bufferSize);
 
 #endif

@@ -69,26 +69,25 @@ uint8_t MAX_ReadRegister(uint8_t regAddr){
     return data;
 
 } 
-uint16_t MAX_ReadFifoReg(void){
+uint32_t MAX_ReadFifoReg(void){
     I2C_Start();
     I2C_Send_Addr(MAX30102_W_ADDRESS);
     I2C_Send8bit(FIFO_DATA_REGISTER);
     I2C_Start();
     I2C_Send_Addr(MAX30102_R_ADDRESS);
-    uint8_t dummy;
-    uint8_t hByte;
-    uint8_t lByte;
-    uint16_t data;
-    dummy=I2C_Receive8bit(1); // data is left justified so first 6 bits of the first byte are empty,
-                              // so for simplicity sake we will be disregarding the first byte
-                              // and losing out on 2 bits of data in the first byte, so instead of 18bit
-                              // resolution we will have 16 bit resolution
-    hByte=I2C_Receive8bit(1);
-    lByte=I2C_Receive8bit(0); //last byte NACK
-    data=(hByte<<8) | lByte;
+    uint8_t byte1;
+    uint8_t byte2;
+    uint8_t byte3;
+    uint32_t data=0x00000000;
+    byte1=I2C_Receive8bit(1); 
+    byte2=I2C_Receive8bit(1);
+    byte3=I2C_Receive8bit(0); // last byte NACK
+    byte1=byte1 & 0x03;       // In the first byte only the 2 least significant bits in the byte are used, 
+                              // but they are the MSB in the raw sensor data,since the data is left justified
+    data=(byte1<<16) | (byte2<<8) | byte3;
     return data;
 }     
-void MAX_GetFifoSample(uint16_t *data,uint8_t bufferSize){
+void MAX_GetFifoSample(uint32_t *data,uint8_t bufferSize){
         uint8_t rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
         uint8_t wr_ptr = MAX_ReadRegister(FIFO_WRITE_POINTER);
         volatile int i=0;
