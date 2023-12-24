@@ -16,6 +16,10 @@
 #define FIFO_CONF_REGISTER 0x08
 #define MODE_REG 0x09                   // Mode selection reg
 
+#define ALPHA 0.95                      // DC Removal Coefficient
+#define MEAN_FILTER_SIZE 5  
+#define BUFFER_SIZE 32
+
 
 #define FIFO_ROLLOVER_EN 0x10
 #define SMP_AVG_4 0x40                  //Number of samples averaged to reduce data throughput 
@@ -28,5 +32,11 @@
 
 void MAX_Init(void);
 void MAX_GetFifoSample(uint32_t *data,uint8_t bufferSize);
+void applyDCRemovalFilter(uint32_t* input,float* output, uint8_t bufferSize);
+void medianFilter(float* input, float* output);
+void meanFilter(float* input, float* output);
+
+
+
 
 #endif
