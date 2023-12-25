@@ -1,31 +1,55 @@
-% Create a serial object
-s = serial('/dev/ttyUSB0', 'BaudRate', 921600, 'Terminator', 'LF');
-fopen(s);
+% Create a serialport object
+s = serialport('/dev/ttyUSB0', 921600); % Adjust baud rate accordingly
 
-% Number of samples to read in each iteration
-numSamplesPerIteration = 32;
+% Create a figure and axis for plotting
+figure;
+ax = axes;
 
-% Initialize array to store received data
-receivedData = [];
+% Set up plot properties
+xlabel('Sample Index');
+ylabel('Data');
+title('Real-time Data Plot');
 
-% Continuous loop to read and plot data
-while true
-    % Read data from USART
-    rawData = fread(s, numSamplesPerIteration, 'float32');
+% Define the number of samples to read at a time
+chunkSize = 100;
+sampleRate = 10; % Adjust the sample rate (samples per second) accordingly
 
-    % Append received data to the array
-    receivedData = [receivedData, rawData];
+% Initialize variables
+allData = [];
+totalSamples = 0;
 
-    % Plot the received data
-    plot(1:length(receivedData), receivedData, '-o');
-    title('Received Data from Microcontroller (Float)');
-    xlabel('Sample Index');
-    ylabel('Received Value');
-    drawnow;  % Update the plot
+% Read and plot data in real-time
+try
+    while ishandle(ax)
+        % Read data from serial port
+        newData = zeros(chunkSize, 1);
+        for i = 1:chunkSize
+            % Read and convert data from string to double
+            newData(i) = str2double(readline(s));
+        end
 
-    % Pause for a short duration (adjust as needed)
-    pause(0.5);
+        % Concatenate new data to the existing data
+        allData = [allData; newData];
+
+        % Update the total number of samples
+        totalSamples = totalSamples + chunkSize;
+
+        % Plot all past data
+        plot(ax, (1:totalSamples), allData);
+        
+        % Update the plot
+        drawnow;
+    end
+catch
+    % Clear the serial port connection when done or in case of an error
+    closePort(s);
+    disp('Serial port closed.');
 end
 
-% Close the serial port (this won't be reached in the infinite loop)
-fclose(s);
+% Function to close the serial port
+function closePort(s)
+    fclose(s);
+    delete(s);
+    clear s;
+end
+

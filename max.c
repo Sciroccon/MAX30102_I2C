@@ -17,6 +17,7 @@ void MAX_Init(void) {
     I2C_Stop();
     
     delay_ms(5);
+
     I2C_Start();
     I2C_Send_Addr(MAX30102_W_ADDRESS);
     I2C_Send8bit(LED1_PULSE_AMPLITUDE_REG);
@@ -24,6 +25,15 @@ void MAX_Init(void) {
     I2C_Stop();
 
     delay_ms(5);
+
+    I2C_Start();
+    I2C_Send_Addr(MAX30102_W_ADDRESS);
+    I2C_Send8bit(FIFO_CONF_REGISTER);
+    I2C_Send8bit(SMP_AVG_4 | FIFO_ROLLOVER_EN);      
+    I2C_Stop();
+
+    delay_ms(5);
+
     I2C_Start();
     I2C_Send_Addr(MAX30102_W_ADDRESS);
     I2C_Send8bit(FIFO_WRITE_POINTER);
@@ -48,13 +58,6 @@ void MAX_Init(void) {
 
     delay_ms(5);
 
-    I2C_Start();
-    I2C_Send_Addr(MAX30102_W_ADDRESS);
-    I2C_Send8bit(FIFO_CONF_REGISTER);
-    I2C_Send8bit(SMP_AVG_4 | FIFO_ROLLOVER_EN);      
-    I2C_Stop();
-    
-    delay_ms(5);
 
 }
 
@@ -86,22 +89,63 @@ uint32_t MAX_ReadFifoReg(void){
                               // but they are the MSB in the raw sensor data,since the data is left justified
     data=(byte1<<16) | (byte2<<8) | byte3;
     return data;
-}     
-void MAX_GetFifoSample(uint32_t *data,uint8_t bufferSize){
-        uint8_t rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
-        uint8_t wr_ptr = MAX_ReadRegister(FIFO_WRITE_POINTER);
-        volatile int i=0;
-        while(i<bufferSize)
-        {
+}   
+// void MAX_GetFifoSample(uint32_t *data,uint8_t bufferSize){
+//         uint8_t rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
+//         uint8_t wr_ptr;
+//         volatile int i=0;
+//         while(i<bufferSize)
+//         {
+//             wr_ptr = MAX_ReadRegister(FIFO_WRITE_POINTER);
+//             if(wr_ptr!=rd_ptr)
+//             {
+//                 data[i]=MAX_ReadFifoReg();
+//                 i++;
+//                 rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
+
+//             }
+//         }
+// }
+  
+//   void MAX_GetFifoSample(uint32_t *data, uint8_t bufferSize) {
+//     uint8_t rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
+//     uint8_t wr_ptr = MAX_ReadRegister(FIFO_WRITE_POINTER);
+//     int i = 0;
+
+//     // Calculate the number of samples to read, considering FIFO rollover
+//     uint8_t samplesToRead = (wr_ptr >= rd_ptr) ? (wr_ptr - rd_ptr) : (FIFO_DEPTH - rd_ptr + wr_ptr);
+
+//     while (i < bufferSize && samplesToRead > 0) {
+//         data[i] = MAX_ReadFifoReg();
+//         ++i;
+//         --samplesToRead;
+//     }
+// }
+
+
+void MAX_GetFifoSample(uint32_t *data, uint8_t bufferSize) {
+    uint8_t rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
+    uint8_t wr_ptr = MAX_ReadRegister(FIFO_WRITE_POINTER);
+
+    // Check if FIFO is not empty
+    if (wr_ptr != rd_ptr || MAX_ReadRegister(OVF_COUNT_REGISTER) != 0) {
+        int i = 0;
+
+        while (i < bufferSize) {
+            uint8_t samplesToRead = wr_ptr - rd_ptr;
+            samplesToRead = (samplesToRead < 0) ? (samplesToRead + FIFO_DEPTH) : samplesToRead; 
+            uint8_t samplesRead = (samplesToRead < bufferSize - i) ? samplesToRead : (bufferSize - i);
+            int j;
+            for (j = 0; j < samplesRead; ++j) {
+                data[i++] = MAX_ReadFifoReg();
+            }
+
             rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
             wr_ptr = MAX_ReadRegister(FIFO_WRITE_POINTER);
-            if(wr_ptr!=rd_ptr)
-            {
-                data[i]=MAX_ReadFifoReg();
-                i++;
-            }
         }
+    }
 }
+
 
 void applyDCRemovalFilter(uint32_t* input,float* output, uint8_t bufferSize) {
     // Initial condition: w(-1) = 0
@@ -124,15 +168,15 @@ void applyDCRemovalFilter(uint32_t* input,float* output, uint8_t bufferSize) {
 
 
 void meanFilter(float* input, float* output) {
-volatile int i;
+int i;
     for (i = 0; i < BUFFER_SIZE; ++i) {
         float sum = 0;
 
         // Compute the mean within the window
-        volatile int j;
+        int j;
         for (j = i - MEAN_FILTER_SIZE / 2; j <= i + MEAN_FILTER_SIZE / 2; ++j) {
-            if (j >= 0 && j < BUFFER_SIZE) {
-                sum += input[j];
+           if (j >= 0 && j < BUFFER_SIZE) {
+               sum += input[j];
             }
         }
 
@@ -141,7 +185,7 @@ volatile int i;
     }
 }
 
-// Function to apply the median filter
+
 void medianFilter(float* input, float* output) {
     volatile int i;
     for (i = 0; i < BUFFER_SIZE; ++i) {
@@ -158,7 +202,7 @@ void medianFilter(float* input, float* output) {
         volatile int g;
         // Sort the window array (e.g., using bubble sort for simplicity)
         for ( g = 0; g < count - 1; ++g) {
-                volatile int k;
+            volatile int k;
             for (k = 0; k < count - g - 1; ++k) {
                 if (window[k] > window[k + 1]) {
                     // Swap values
@@ -168,8 +212,50 @@ void medianFilter(float* input, float* output) {
                 }
             }
         }
-
         // Assign the median value to the output
         output[i] = window[count / 2];
     }
+}
+
+
+
+float calculateHeartRate(float output[], uint8_t bufferSize) {
+    // Calculate the threshold as a fraction (e.g., 70%) of the maximum value in the data
+    float max_value = 0.0;
+    float min_value = 0.0;
+    uint8_t i;
+    for (i = 0; i < bufferSize; ++i) {
+        if (output[i] > max_value) {
+            max_value = output[i];
+        }
+        if (output[i]<min_value){
+            min_value=output[i];
+        }
+    }
+    float threshold = 0.5 * max_value;
+
+
+    // Variables for peak detection
+    int isPeak = 0;
+    int peakCount = 0;
+    int peakIndex = 0;
+
+    // Variables for calculating time between peaks
+    int timeBetweenPeaks = 0;
+    //int totalTime = 0;
+    uint8_t j;
+     for (j = 1; j < bufferSize; ++j) {
+        if (output[j] > threshold && output[j] > output[j - 1]) {
+            // Found a peak
+            isPeak = 1;
+            peakIndex = j;
+        } else if (isPeak && output[j] < threshold) {
+            // Peak ended
+            isPeak = 0;
+            timeBetweenPeaks += j - peakIndex;
+            ++peakCount;
+        }
+    }
+    printUSART2("Max Val: %f  Min Val: %f numPeaks: %d\n",max_value,min_value,peakCount);
+    return max_value;
 }
