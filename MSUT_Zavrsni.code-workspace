@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "../LCD_I2C"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"stdint.h": "c"
+		}
+	}
+}

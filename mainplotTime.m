@@ -5,13 +5,13 @@ figure;
 ax = axes;
 
 % Set up plot properties
-xlabel('Sample Index');
+xlabel('Time (seconds)');
 ylabel('Data');
 title('Real-time Data Plot');
 
 % Define the number of samples to read at a time
-chunkSize = 200;
-sampleRate = 100; % Adst the sample rate (samples per second) accordingly
+chunkSize = 20; 
+sampleRate = 100; % Adjust the sample rate (samples per second) accordingly
 
 % Initialize variables
 allData = [];
@@ -33,19 +33,25 @@ try
         % Update the total number of samples
         totalSamples = totalSamples + chunkSize;
 
+        % Calculate the time corresponding to each sample
+        time = (1:totalSamples) / sampleRate;
+
         % Set X-axis limits to show all samples
-        xlim(ax, [1, totalSamples]);
+        xlim(ax, [time(1), time(end)]);
 
         % Dynamically adjust Y-axis limits based on current data
         currentMax = max(allData);
         currentMin = min(allData);
-        ylim(ax, [currentMin, currentMax]);
-
-        % Plot all past data
-        plot(ax, (1:totalSamples), allData);
         
-        % Add a horizontal line at the 0 point on the x-axis
-        yline(ax, 0, 'k--'); % 'k--' specifies a black dashed line
+        % Set Y-axis limits with some buffer to accommodate the horizontal line
+        buffer = 0.1 * max(abs(currentMin), abs(currentMax));
+        ylim(ax, [currentMin - buffer, currentMax + buffer]);
+
+        % Plot all past data against time
+        plot(ax, time, allData);
+        
+        % Draw a horizontal line at y=0
+        line(ax, [time(1), time(end)], [0, 0], 'Color', 'r', 'LineStyle', '--');
         
         % Update the plot
         drawnow;
@@ -62,3 +68,4 @@ function closePort(s)
     delete(s);
     clear s;
 end
+

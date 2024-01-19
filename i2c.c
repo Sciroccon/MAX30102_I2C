@@ -61,6 +61,7 @@ uint8_t I2C_Receive8bit(uint8_t ack){
     }
     else
     {
+        
         I2C1->CR1 &= ~I2C_CR1_ACK;
     }
     while (!(I2C1->SR1 & I2C_SR1_RXNE)){}

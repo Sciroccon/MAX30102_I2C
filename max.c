@@ -3,61 +3,70 @@
 #include "i2c.h"
 #include "usart.h"
 #include "delay.h"
+#include <math.h>
+#include <stdio.h>
+
+#define M_PI 3.14159265358979323846
+
 
 //wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
 	// MAX : PB6 -> SCL & PB7 -> SDA
 	//------------------------------------------------------------------ 
 
 void MAX_Init(void) {
-    delay_ms(5);
+    delay_ms(4);
     I2C_Start();
     I2C_Send_Addr(MAX30102_W_ADDRESS);
     I2C_Send8bit(MODE_REG);
     I2C_Send8bit(HRM_MODE);
     I2C_Stop();
-    
-    delay_ms(5);
+    delay_ms(4);
 
     I2C_Start();
     I2C_Send_Addr(MAX30102_W_ADDRESS);
     I2C_Send8bit(LED1_PULSE_AMPLITUDE_REG);
     I2C_Send8bit(LED1_ON);
     I2C_Stop();
-
-    delay_ms(5);
+   
+delay_ms(4);
 
     I2C_Start();
     I2C_Send_Addr(MAX30102_W_ADDRESS);
-    I2C_Send8bit(FIFO_CONF_REGISTER);
-    I2C_Send8bit(SMP_AVG_4 | FIFO_ROLLOVER_EN);      
+    I2C_Send8bit(SPO2_CONF);
+    I2C_Send8bit(0X06);
     I2C_Stop();
+    delay_ms(4);
 
-    delay_ms(5);
+
+    
 
     I2C_Start();
     I2C_Send_Addr(MAX30102_W_ADDRESS);
     I2C_Send8bit(FIFO_WRITE_POINTER);
     I2C_Send8bit(0x00);
     I2C_Stop();
-
-    delay_ms(5);
+    delay_ms(4);
 
     I2C_Start();
     I2C_Send_Addr(MAX30102_W_ADDRESS);
     I2C_Send8bit(FIFO_READ_POINTER);
     I2C_Send8bit(0x00);
     I2C_Stop();
-
-    delay_ms(5);
+    delay_ms(4);
 
     I2C_Start();
     I2C_Send_Addr(MAX30102_W_ADDRESS);
     I2C_Send8bit(OVERFLOW_COUNTER);
     I2C_Send8bit(0x00);
     I2C_Stop();
+    delay_ms(4);
 
-    delay_ms(5);
-
+I2C_Start();
+    I2C_Send_Addr(MAX30102_W_ADDRESS);
+    I2C_Send8bit(FIFO_CONF_REGISTER);
+    I2C_Send8bit( FIFO_ROLLOVER_EN);      
+    I2C_Stop();
+    delay_ms(4);
 
 }
 
@@ -72,7 +81,8 @@ uint8_t MAX_ReadRegister(uint8_t regAddr){
     return data;
 
 } 
-uint32_t MAX_ReadFifoReg(void){
+uint32_t MAX_ReadFifoReg(void)
+{
     I2C_Start();
     I2C_Send_Addr(MAX30102_W_ADDRESS);
     I2C_Send8bit(FIFO_DATA_REGISTER);
@@ -89,50 +99,18 @@ uint32_t MAX_ReadFifoReg(void){
                               // but they are the MSB in the raw sensor data,since the data is left justified
     data=(byte1<<16) | (byte2<<8) | byte3;
     return data;
-}   
-// void MAX_GetFifoSample(uint32_t *data,uint8_t bufferSize){
-//         uint8_t rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
-//         uint8_t wr_ptr;
-//         volatile int i=0;
-//         while(i<bufferSize)
-//         {
-//             wr_ptr = MAX_ReadRegister(FIFO_WRITE_POINTER);
-//             if(wr_ptr!=rd_ptr)
-//             {
-//                 data[i]=MAX_ReadFifoReg();
-//                 i++;
-//                 rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
+} 
 
-//             }
-//         }
-// }
-  
-//   void MAX_GetFifoSample(uint32_t *data, uint8_t bufferSize) {
-//     uint8_t rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
-//     uint8_t wr_ptr = MAX_ReadRegister(FIFO_WRITE_POINTER);
-//     int i = 0;
-
-//     // Calculate the number of samples to read, considering FIFO rollover
-//     uint8_t samplesToRead = (wr_ptr >= rd_ptr) ? (wr_ptr - rd_ptr) : (FIFO_DEPTH - rd_ptr + wr_ptr);
-
-//     while (i < bufferSize && samplesToRead > 0) {
-//         data[i] = MAX_ReadFifoReg();
-//         ++i;
-//         --samplesToRead;
-//     }
-// }
 
 
 void MAX_GetFifoSample(uint32_t *data, uint8_t bufferSize) {
     uint8_t rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
     uint8_t wr_ptr = MAX_ReadRegister(FIFO_WRITE_POINTER);
 
-    // Check if FIFO is not empty
-    if (wr_ptr != rd_ptr || MAX_ReadRegister(OVF_COUNT_REGISTER) != 0) {
         int i = 0;
-
         while (i < bufferSize) {
-            uint8_t samplesToRead = wr_ptr - rd_ptr;
+            int samplesToRead = wr_ptr - rd_ptr;
+
             samplesToRead = (samplesToRead < 0) ? (samplesToRead + FIFO_DEPTH) : samplesToRead; 
             uint8_t samplesRead = (samplesToRead < bufferSize - i) ? samplesToRead : (bufferSize - i);
             int j;
@@ -142,120 +120,176 @@ void MAX_GetFifoSample(uint32_t *data, uint8_t bufferSize) {
 
             rd_ptr = MAX_ReadRegister(FIFO_READ_POINTER);
             wr_ptr = MAX_ReadRegister(FIFO_WRITE_POINTER);
+            
         }
-    }
 }
 
 
-void applyDCRemovalFilter(uint32_t* input,float* output, uint8_t bufferSize) {
-    // Initial condition: w(-1) = 0
-    float w_prev = 0.0f;
-    volatile int i;
+
+
+void dcRemoval(uint32_t* input,float* output,uint8_t bufferSize) {
+    // Calculate the mean of the input signal
+    float mean = 0.0;
+    int i=0;
     for (i = 0; i < bufferSize; ++i) {
-        // Apply DC removal filter
-        float x_t = (float)input[i];
-        float w_t = x_t + ALPHA * w_prev;
-
-        // Calculate y(t) as the difference between consecutive filtered values
-        float y_t = w_t - w_prev;
-        // Update previous filtered value for the next iteration
-        w_prev = w_t;
-
-        // Replace the original sample with the filtered value
-        output[i] = y_t;
+        mean += input[i];
     }
-}   
-
-
-void meanFilter(float* input, float* output) {
-int i;
-    for (i = 0; i < BUFFER_SIZE; ++i) {
-        float sum = 0;
-
-        // Compute the mean within the window
-        int j;
-        for (j = i - MEAN_FILTER_SIZE / 2; j <= i + MEAN_FILTER_SIZE / 2; ++j) {
-           if (j >= 0 && j < BUFFER_SIZE) {
-               sum += input[j];
-            }
-        }
-
-        // Assign the mean value to the output
-        output[i] = sum / MEAN_FILTER_SIZE;
+    mean /= bufferSize;
+    // Subtract the mean from each data point and store in the output array
+    for (i = 0; i < bufferSize; ++i) {
+        output[i] = (float)(input[i] - mean);
     }
 }
 
 
-void medianFilter(float* input, float* output) {
-    volatile int i;
-    for (i = 0; i < BUFFER_SIZE; ++i) {
-        float window[MEAN_FILTER_SIZE];
-        uint16_t count = 0;
+void movingAverageFilter(float* input, float* output, uint8_t bufferSize) {
+    int i = 0;
+    float sum = 0.0;
 
-        // Populate the window array
-        volatile int j;
-        for ( j = i - MEAN_FILTER_SIZE / 2; j <= i + MEAN_FILTER_SIZE / 2; ++j) {
-            if (j >= 0 && j < BUFFER_SIZE) {
-                window[count++] = input[j];
-            }
+    for (i = 0; i < WINDOW_SIZE / 2; ++i) {
+        sum += input[i];
+    }
+
+    for (i = 0; i < bufferSize; ++i) {
+        if (i + WINDOW_SIZE / 2 < bufferSize) {
+            sum += input[i + WINDOW_SIZE / 2];
         }
-        volatile int g;
-        // Sort the window array (e.g., using bubble sort for simplicity)
-        for ( g = 0; g < count - 1; ++g) {
-            volatile int k;
-            for (k = 0; k < count - g - 1; ++k) {
-                if (window[k] > window[k + 1]) {
-                    // Swap values
-                    float temp = window[k];
-                    window[k] = window[k + 1];
-                    window[k + 1] = temp;
+
+        if (i - WINDOW_SIZE / 2 - 1 >= 0) {
+            sum -= input[i - WINDOW_SIZE / 2 - 1];
+        }
+
+        output[i] = sum / WINDOW_SIZE;
+    }
+}
+
+void bandpassFilter(float* input, float* output, float cutoff_low, float cutoff_high) {
+    float alpha, a1, b0, b1;
+    float x1 = 0.0, y1 = 0.0;  // State variables
+
+    // Calculate filter coefficients using bilinear transformation
+    alpha = tan(M_PI * (cutoff_high - cutoff_low) / 100.0);
+    a1 = (alpha - 1) / (alpha + 1);
+    b0 = alpha / (alpha + 1);
+    b1 = b0;
+
+    // Apply filter to each sample
+    int i=0;
+    for (i = 0; i < BUFFER_SIZE; i++) {
+        output[i] = b0 * input[i] + b1 * x1 - a1 * y1;
+
+        // Update state variables
+        x1 = input[i];
+        y1 = output[i];
+    }
+}
+
+#define MAX_WINDOW_SIZE 5
+// Function to implement a mean median filter with sorting
+void meanMedianFilter(float* input, float* output, int size, int window_size) {
+    // Ensure the window size does not exceed the maximum allowed size
+    window_size = (window_size > MAX_WINDOW_SIZE) ? MAX_WINDOW_SIZE : window_size;
+
+    // Apply the mean median filter to each sample
+    int i,j,k;
+    for (i = window_size; i < size; ++i) {
+        // Declare the window array with a fixed size
+        float window[MAX_WINDOW_SIZE + 1];
+
+        // Copy values to the window array
+        for (j = i - window_size, k = 0; j <= i; ++j, ++k) 
+        {
+            window[k] = input[j];
+        }
+
+        // Sort the window array (you can use any sorting algorithm)
+        // Here, we use a simple bubble sort for illustration purposes
+        for ( k = 0; k < window_size; ++k) {
+            int l;
+            for (l = 0; l < window_size - k - 1; ++l) {
+                if (window[l] > window[l + 1]) {
+                    // Swap elements
+                    float temp = window[l];
+                    window[l] = window[l + 1];
+                    window[l + 1] = temp;
                 }
             }
         }
-        // Assign the median value to the output
-        output[i] = window[count / 2];
+
+        // Calculate the mean median difference
+        float mean = 0.0;
+        float median;
+
+        // Calculate the mean
+        for ( k = 0; k <= window_size; ++k) {
+            mean += window[k];
+        }
+        mean /= (float)(window_size + 1);
+
+        // Calculate the median
+        if (window_size % 2 == 0) {
+            // If window_size is even, take the average of the middle elements
+            median = (window[window_size / 2] + window[window_size / 2 - 1]) / 2.0;
+        } else {
+            // If window_size is odd, take the middle element
+            median = window[window_size / 2];
+        }
+
+        // Calculate the mean median difference
+        output[i] = input[i] - median;
     }
 }
-
-
-
-float calculateHeartRate(float output[], uint8_t bufferSize) {
-    // Calculate the threshold as a fraction (e.g., 70%) of the maximum value in the data
-    float max_value = 0.0;
-    float min_value = 0.0;
-    uint8_t i;
-    for (i = 0; i < bufferSize; ++i) {
-        if (output[i] > max_value) {
-            max_value = output[i];
-        }
-        if (output[i]<min_value){
-            min_value=output[i];
+float findMax(float* array, int size) {
+    float max = array[0];
+    int i=1;
+    for (i = 1; i < size; ++i) {
+        if (array[i] > max) {
+            max = array[i];
         }
     }
-    float threshold = 0.5 * max_value;
+    return max;
+}
 
+#define MIN_DIST 27
+float calculateBPM(float* filtered_data, int size, float sampling_rate) {
+    int peak_detected = 0;
+    int peak_count = 0;
+    float total_time = 0.0;
+    int last_peak_index=0;
+    int i=1;
 
-    // Variables for peak detection
-    int isPeak = 0;
-    int peakCount = 0;
-    int peakIndex = 0;
+    float sum = 0.0;
+    for (i = 0; i < size; ++i) {
+        sum += filtered_data[i];
+    }
+    float THRESHOLD= sum/size;
 
-    // Variables for calculating time between peaks
-    int timeBetweenPeaks = 0;
-    //int totalTime = 0;
-    uint8_t j;
-     for (j = 1; j < bufferSize; ++j) {
-        if (output[j] > threshold && output[j] > output[j - 1]) {
-            // Found a peak
-            isPeak = 1;
-            peakIndex = j;
-        } else if (isPeak && output[j] < threshold) {
-            // Peak ended
-            isPeak = 0;
-            timeBetweenPeaks += j - peakIndex;
-            ++peakCount;
+    for ( i = 1; i < size - 1; ++i) {
+        if (filtered_data[i] > filtered_data[i - 1] && filtered_data[i] > filtered_data[i + 1] && filtered_data[i] > THRESHOLD) {
+            if (peak_detected != 1) {
+                if(last_peak_index != 0)
+                {
+                    if((i-last_peak_index)<=MIN_DIST){continue;}
+                }
+                peak_detected = 1;
+                float inter_beat_interval = (i-last_peak_index)/ sampling_rate;
+                total_time += inter_beat_interval;
+                ++peak_count;
+                last_peak_index = i;
+            }
+        } else {
+            peak_detected = 0;
         }
     }
-    printUSART2("Max Val: %f  Min Val: %f numPeaks: %d\n",max_value,min_value,peakCount);
-    return max_value;
+
+    if (peak_count < 2) {
+        return 0.0;
+    }
+
+    float average_interval = total_time / (peak_count - 1);
+    float bpm = 60.0 / average_interval;
+    if(peak_count==2){bpm=bpm*2;}
+
+
+    return bpm;
 }
