@@ -25,8 +25,8 @@ I2C1->OAR1 |= 0x4000;                                // Bit 14 needs to be set h
 I2C1->CR1 &= ~I2C_CR1_PE; 	                         // Turns off I2C peripheral,as it needs to be turned off before configuration
 I2C1->CR2 = 0x002A; 		                         // 42MHz Clock
 I2C1->CCR = 0x05 | I2C_CCR_FS | I2C_CCR_DUTY;		 // T=1/F=1/400khz=2.5us
-							                        // Peripheral clock is set at 42MHz, so Tpclk=1/42Mhz=24ns,Thigh+Tlow=25*CCR*Tpclk1, CCR=(Thigh+Tlow)/25*Tpclk or it can be calculated also as CCR=42Mhz/2*400kHz
-I2C1->TRISE = 0xD; 		            // MAX30102 requires that the maximum rise time be no bigger than 300ns,so 300/Tpclk=300/24ns=12+1 because 1 needs to be added to ensure TRISE value is at least 1.
+							                         // Peripheral clock is set at 42MHz, so Tpclk=1/42Mhz=24ns,Thigh+Tlow=25*CCR*Tpclk1, CCR=(Thigh+Tlow)/25*Tpclk
+I2C1->TRISE = 0xD; 		                             // MAX30102 requires that the maximum rise time be no bigger than 300ns,so 300/Tpclk=300/24ns=12+1 and 1 needs to be added to ensure TRISE value is at least 1.
 
 
 I2C1->CR1 |= I2C_CR1_PE;
