@@ -1,6 +1,8 @@
 ## MAX30102 Pulse and Oximeter sensor for use with a STM32F407 MCU
-Disclaimer!
-This project is still not finished 
+This project is finished.
 
 Connection is realized via I2C via I2C1 peripheral on APB1(42Mhz) Bus.PB6(SCL) and PB7(SDA) are used for connection via the MAX sensor and the STM32 MCU.
-Up until this point i have managed to get the data readings off the sensor,all that is left now to do is to write the logic for calculating the BPM.
+This project was made to detect heart pulses and measure BPM(Beats per minute).The detection algorithm is kinda iffy,and will throw false positives if the pressure on the sensor is too high,or the person is moving too much.Person must be still and not applying too much pressure to the sensor.
+Hope this will help to whoever is planning to use this sensor with the STM32 MCU.
+
+Cheers and pray for me that my professor doesnt say its shit :").
