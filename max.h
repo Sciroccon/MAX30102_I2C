@@ -32,7 +32,7 @@
 #define OXI_MODE 0x03
 #define LED1_PULSE_AMPLITUDE_REG 0x0C   //RED LED
 #define LED2_PULSE_AMPLITUDE_REG 0x0D   //IR LED
-#define LED1_ON 0X1F           //LED Current value typical =0x1f, 0X00-0XFF
+#define LED1_ON 0X1F                    //LED Current value typical =0x1f, 0X00-0XFF
 
 
 

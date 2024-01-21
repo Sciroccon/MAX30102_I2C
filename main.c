@@ -59,7 +59,11 @@ int main(void) {
 
 
         if(raw_Samples[10]<100000)
-        {
+        {   int i;
+            for (i = 0; i < 4; i++) 
+            {
+            bpmReadings[i] = 0;
+            }
             bpmcnt=0;
             state=-1;
       
@@ -67,7 +71,7 @@ int main(void) {
             {
                 runMasterNodeSYS(averageBPM,state);
             }
-        }
+        } 
         else 
         {
             bpm=calculateBPM(butter,BUFFER_SIZE,100.0);
