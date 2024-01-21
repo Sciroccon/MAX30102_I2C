@@ -23,9 +23,10 @@ GPIOB->AFR[0] |= 0x44000000;                                        // AF4 for I
 // I2C Register configuration
 I2C1->OAR1 |= 0x4000;                                // Bit 14 needs to be set high by software
 I2C1->CR1 &= ~I2C_CR1_PE; 	                         // Turns off I2C peripheral,as it needs to be turned off before configuration
-I2C1->CR2 = 0x002A; 		                         // 42MHz Clock
-I2C1->CCR = 0x05 | I2C_CCR_FS | I2C_CCR_DUTY;		 // T=1/F=1/400khz=2.5us
-							                         // Peripheral clock is set at 42MHz, so Tpclk=1/42Mhz=24ns,Thigh+Tlow=25*CCR*Tpclk1, CCR=(Thigh+Tlow)/25*Tpclk
+I2C1->CR2 = 0x0028; 		                         // 40MHz Clock
+I2C1->CCR = 0x05 | I2C_CCR_FS | I2C_CCR_DUTY;		 // T=1/F=1/400khz=2.5us == THigh+Tlow
+                                                     // FM Mode selected,DUTY bit set to 1, so Tlow/Thigh=16/9 or Tlow=1.8Thigh to achieve 400kHz speed
+							                         // Peripheral clock is set at 42MHz, so Tpclk=1/40Mhz=25ns,Thigh+Tlow=25*CCR*Tpclk1, CCR=(Thigh+Tlow)/25*Tpclk
 I2C1->TRISE = 0xD; 		                             // MAX30102 requires that the maximum rise time be no bigger than 300ns,so 300/Tpclk=300/24ns=12+1 and 1 needs to be added to ensure TRISE value is at least 1.
 
 
