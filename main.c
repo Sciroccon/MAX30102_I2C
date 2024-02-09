@@ -4,6 +4,7 @@
 #include "i2c.h"
 #include "delay.h"
 #include "nrf24l01.h"
+#include "usart.h"
 #include "spi.h"
 
 uint32_t raw_Samples[BUFFER_SIZE];
@@ -15,6 +16,7 @@ float    butter[BUFFER_SIZE];
 void runMasterNodeSYS(uint8_t avgBPM,int state);
 
 int main(void) {
+    initUSART2(921600);
     uint8_t node_type = NRF24L01_NODE_TYPE_TX;
 
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
