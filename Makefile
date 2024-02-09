@@ -12,7 +12,7 @@ SRCS = main.c
 
 SRCS += system_stm32f4xx.c max.c 
 SRCS += nrf24l01.c spi.c
-SRCS += delay.c usart.c
+SRCS += delay.c
 SRCS += misc.c i2c.c
 
 

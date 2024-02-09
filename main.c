@@ -2,7 +2,6 @@
 #include "max.h"
 #include "stm32f4xx.h"
 #include "i2c.h"
-#include "usart.h"
 #include "delay.h"
 #include "nrf24l01.h"
 #include "spi.h"
@@ -12,40 +11,35 @@ float    dc_Rem_Samples[BUFFER_SIZE];
 float    maf[BUFFER_SIZE];
 float    butter[BUFFER_SIZE];
 
+
 void runMasterNodeSYS(uint8_t avgBPM,int state);
 
 int main(void) {
-    initUSART2(USART2_BAUDRATE_921600);
-    
     uint8_t node_type = NRF24L01_NODE_TYPE_TX;
 
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
     GPIOC->MODER &= ~(GPIO_MODER_MODER6);
     GPIOC->PUPDR |= (GPIO_PUPDR_PUPDR6_0);
-
     delay_ms(10);
+
     if ((GPIOC->IDR & 0x00000040) == 0x00000000)
     {
         // init as Tx node
         node_type = NRF24L01_NODE_TYPE_TX;
     }
 
-    // printUSART2("\n\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n");
-    // printUSART2("w nRF24L01 Tx demo - TYPE[%d] ", node_type);
-    // printUSART2("\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n");
-
     initSYSTIM();
     initNRF24L01(node_type);
 
     I2C_Conf();
+    delay_ms(500);
     MAX_Init();
-    delay_ms(1500);
     
     int bpmReadings[4] = {0}; // Array to store BPM readings
     int bpmcnt = 0;
     int state = 2;
     int bpm = 0;
-    int averageBPM = 0;  
+    int averageBPM = 0; 
 
 
 
@@ -55,8 +49,8 @@ int main(void) {
         MAX_GetFifoSample(raw_Samples,BUFFER_SIZE);
         dcRemoval(raw_Samples,dc_Rem_Samples,BUFFER_SIZE);
         movingAverageFilter(dc_Rem_Samples,maf,BUFFER_SIZE);
-        bandpassFilter(maf,butter,0.67,8.0);
-
+        bandpassFilter(maf,butter,0.67,3.66);
+        int i=0;
 
         if(raw_Samples[10]<100000)
         {   int i;
@@ -87,14 +81,10 @@ int main(void) {
             }
     
 
-
             if(bpmcnt>=4)
             {
                 state=1;
                 averageBPM = (bpmReadings[0] + bpmReadings[1] + bpmReadings[2] + bpmReadings[3]) / 4;
-                printUSART2("AVG BPM:%d\n",averageBPM);
-                printUSART2("BPM:%d\n",bpm);
-                printUSART2("-------------------------\n");
                 if (node_type == NRF24L01_NODE_TYPE_TX)
                 {
                     runMasterNodeSYS(averageBPM,state);
@@ -102,7 +92,7 @@ int main(void) {
             }
             else
             {
-                state=0;  //Ucitavanje podataka
+                state=0;                                // Loading data...
                 if (node_type == NRF24L01_NODE_TYPE_TX)
                 {
                     runMasterNodeSYS(averageBPM,state);
@@ -118,7 +108,7 @@ int main(void) {
 void runMasterNodeSYS(uint8_t avgBPM,int state)
 {
     char nrf_data1[NRF24L01_PIPE_LENGTH] = "Ucitavanje...";
-    char nrf_data[NRF24L01_PIPE_LENGTH] = "Vas BMP Je:  ";
+    char nrf_data[NRF24L01_PIPE_LENGTH] = "Vas BPM Je:  ";
     char nrf_greska[NRF24L01_PIPE_LENGTH] ="Postavite prst!";
     uint8_t *p_msg1 = (uint8_t *)nrf_data1;
     uint8_t *p_msg = (uint8_t *)nrf_data;

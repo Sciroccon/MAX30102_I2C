@@ -1,8 +1,8 @@
 #ifndef __MAX_H_
 #define __MAX_H_
 
-#define MAX30102_W_ADDRESS 0xAE // Adresa MAX30102 (WRITE)
-#define MAX30102_R_ADDRESS 0xAF // Adresa MAX30102 (READ)
+#define MAX30102_W_ADDRESS 0xAE // Address MAX30102 (WRITE)
+#define MAX30102_R_ADDRESS 0xAF // Address MAX30102 (READ)
 
 
 #define INTERRUPT_STATUS_1 0x00
@@ -41,19 +41,10 @@ void MAX_GetFifoSample(uint32_t *data,uint8_t bufferSize);
 uint8_t MAX_ReadRegister(uint8_t regAddr);
 
 
-void applyDCRemovalFilter(uint32_t* input,float* output, uint8_t bufferSize,float* w_p);
-void dcRemovalFilter(uint32_t* input, float* output, float *prevOutput);
-float calculateHeartRate(float* output, uint8_t bufferSize);
 void dcRemoval(uint32_t* input,float* output,uint8_t bufferSize);
 void movingAverageFilter(float* input,float* output,uint8_t bufferSize);
-
 void bandpassFilter(float* input, float* output, float cutoff_low, float cutoff_high);
 float calculateBPM(float* filtered_data, int size, float sampling_rate);
-void bandpass_iir_filter(float* input, float* output, int size);
-
-
-
-
 
 
 #endif

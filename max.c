@@ -1,7 +1,6 @@
 #include "stm32f4xx.h"
 #include "max.h"
 #include "i2c.h"
-#include "usart.h"
 #include "delay.h"
 #include <math.h>
 #include <stdio.h>
@@ -32,7 +31,7 @@ void MAX_Init(void) {
     I2C_Start();
     I2C_Send_Addr(MAX30102_W_ADDRESS);
     I2C_Send8bit(SPO2_CONF);
-    I2C_Send8bit(0X06);                 // LED Pulse Width(411us,indirectly sets ADC integration time)
+    I2C_Send8bit(0X06);       // 0 00 11          LED Pulse Width(411us,indirectly sets ADC integration time)
     I2C_Stop();                         // ADC integration time directly controls ADC Resolution(18 bits in our case)
     delay_ms(4);                        // Sample rate:100Hz(100 samples per second)
 
@@ -192,8 +191,10 @@ float calculateBPM(float* filtered_data, int size, float sampling_rate)
     int peak_detected = 0;
     int peak_count = 0;
     float total_time = 0.0;
+    float inter_beat_interval;
     int last_peak_index=0;
     int i=1;
+    
 
     float maxVal = filtered_data[0];
     for (i = 1; i < size; ++i) 
@@ -218,7 +219,7 @@ float calculateBPM(float* filtered_data, int size, float sampling_rate)
                 peak_detected = 1;
                 if(last_peak_index!=0)
                 {
-                    float inter_beat_interval = (i-last_peak_index)/ sampling_rate;
+                    inter_beat_interval = (i-last_peak_index)/ sampling_rate;
                     total_time += inter_beat_interval;
                 }
                 ++peak_count;
@@ -230,13 +231,13 @@ float calculateBPM(float* filtered_data, int size, float sampling_rate)
             peak_detected = 0;
         }
     }
-
+    float average_interval;
     if (peak_count < 2)
     {
         return 0.0;
     }
 
-    float average_interval = total_time / (peak_count - 1);
+    average_interval = total_time / (peak_count-1);
     float bpm = 60.0 / average_interval;
     return bpm;
 }
